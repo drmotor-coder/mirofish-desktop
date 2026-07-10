@@ -7,8 +7,14 @@
       </div>
     </div>
 
+    <!-- Индикатор подключения к бэкенду -->
+    <div class="backend-status" :class="backendOnline ? 'online' : 'offline'" :title="statusTitle">
+      <span class="dot"></span>
+      {{ backendOnline ? 'Бэкенд подключён' : 'Бэкенд недоступен' }}
+    </div>
+
     <!-- Settings Button (always visible) -->
-    <button v-if="!showSettings" class="settings-fab" @click="showSettings = true" title="Open Settings">
+    <button v-if="!showSettings" class="settings-fab" @click="showSettings = true" title="Настройки">
       ⚙️
     </button>
 
@@ -18,16 +24,41 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import SettingsPanel from './components/SettingsPanel.vue'
+import service from './api/index.js'
 
 const showSettings = ref(false)
+const backendOnline = ref(false)
+let pollTimer = null
+
+const statusTitle = computed(() =>
+  `${backendOnline.value ? 'Соединение установлено' : 'Нет ответа от сервиса'} — ${service.defaults.baseURL}`
+)
+
+// Пингуем бэкенд, чтобы пользователь видел статус связи
+const checkBackend = async () => {
+  try {
+    await service.get('/api/graph/list', { timeout: 5000, validateStatus: () => true })
+    backendOnline.value = true
+  } catch (e) {
+    backendOnline.value = false
+  }
+}
 
 const handleSettingsChange = (settings) => {
-  console.log('Settings updated:', settings)
-  // Broadcast settings change to other components
   window.dispatchEvent(new CustomEvent('settings-changed', { detail: settings }))
+  checkBackend()
 }
+
+onMounted(() => {
+  checkBackend()
+  pollTimer = setInterval(checkBackend, 15000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style>
@@ -67,6 +98,46 @@ const handleSettingsChange = (settings) => {
 /* 全局按钮样式 */
 button {
   font-family: inherit;
+}
+
+/* Индикатор статуса бэкенда */
+.backend-status {
+  position: fixed;
+  bottom: 34px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  z-index: 98;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+.backend-status .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.backend-status.online {
+  color: #0a7c3a;
+  border: 1px solid #b6e6c8;
+}
+.backend-status.online .dot {
+  background: #16c060;
+  box-shadow: 0 0 6px #16c060;
+}
+.backend-status.offline {
+  color: #b02020;
+  border: 1px solid #f3c2c2;
+}
+.backend-status.offline .dot {
+  background: #e23b3b;
+  box-shadow: 0 0 6px #e23b3b;
 }
 
 /* Settings FAB (Floating Action Button) */

@@ -77,48 +77,52 @@ ipcMain.handle('get-available-models', async () => {
   }
 });
 
-// Меню
+// Меню (на русском)
 const createMenu = () => {
   const template = [
     {
-      label: 'File',
+      label: 'Файл',
       submenu: [
         {
-          label: 'Exit',
+          label: 'Выход',
           accelerator: 'CmdOrCtrl+Q',
           click: () => {
-            if (backendProcess) {
-              backendProcess.kill();
-            }
             app.quit();
           },
         },
       ],
     },
     {
-      label: 'Edit',
+      label: 'Правка',
       submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
+        { role: 'undo', label: 'Отменить' },
+        { role: 'redo', label: 'Повторить' },
         { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
+        { role: 'cut', label: 'Вырезать' },
+        { role: 'copy', label: 'Копировать' },
+        { role: 'paste', label: 'Вставить' },
+        { role: 'selectAll', label: 'Выделить всё' },
       ],
     },
     {
-      label: 'View',
+      label: 'Вид',
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
+        { role: 'reload', label: 'Перезагрузить' },
+        { role: 'forceReload', label: 'Принудительно перезагрузить' },
+        { role: 'toggleDevTools', label: 'Инструменты разработчика' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Сбросить масштаб' },
+        { role: 'zoomIn', label: 'Увеличить' },
+        { role: 'zoomOut', label: 'Уменьшить' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Полноэкранный режим' },
       ],
     },
     {
-      label: 'Help',
+      label: 'Справка',
       submenu: [
         {
-          label: 'Check for Updates',
+          label: 'Проверить обновления',
           click: () => {
             ipcMain.emit('check-for-updates');
           },
