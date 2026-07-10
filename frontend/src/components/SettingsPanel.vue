@@ -1,119 +1,72 @@
 <template>
   <div class="settings-panel">
     <div class="settings-header">
-      <h2>⚙️ Settings</h2>
-      <button class="close-btn" @click="$emit('close')" title="Close">✕</button>
+      <h2>⚙️ Настройки</h2>
+      <button class="close-btn" @click="$emit('close')" title="Закрыть">✕</button>
     </div>
 
     <div class="settings-content">
-      <!-- LLM Model Settings -->
+      <!-- Модель LLM -->
       <div class="settings-group">
-        <h3>🤖 LLM Model</h3>
+        <h3>🤖 Модель LLM</h3>
         <div class="setting-row">
-          <label>Selected Model:</label>
-          <select v-model="settings.model" @change="saveSetting('model', settings.model)">
+          <label>Активная модель:</label>
+          <select v-model="settings.model" @change="applyModel(settings.model)">
+            <option v-if="availableModels.length === 0" disabled value="">
+              (модели не найдены — проверьте Ollama)
+            </option>
             <option v-for="model in availableModels" :key="model" :value="model">
               {{ model }}
             </option>
           </select>
+          <button class="mini-btn" @click="loadAvailableModels" title="Обновить список">↻</button>
         </div>
-        <p class="hint">The model used for all simulations and AI operations</p>
+        <p class="hint">
+          Модель, на которой считает MiroFish. Изменение применяется к бэкенду сразу.
+          <span v-if="activeBackendModel"> Сейчас на бэкенде: <b>{{ activeBackendModel }}</b></span>
+        </p>
+        <p v-if="modelStatus" :class="modelStatusType" class="update-status">{{ modelStatus }}</p>
       </div>
 
-      <!-- Backend Settings -->
+      <!-- Бэкенд -->
       <div class="settings-group">
-        <h3>⚙️ Backend Configuration</h3>
+        <h3>🔌 Бэкенд (сервис MiroFish)</h3>
         <div class="setting-row">
-          <label>Backend URL:</label>
+          <label>Адрес бэкенда:</label>
           <input
             v-model="settings.backendUrl"
             type="text"
             @change="saveSetting('backendUrl', settings.backendUrl)"
-            placeholder="http://localhost:5000"
+            placeholder="http://127.0.0.1:18500"
           />
         </div>
         <button @click="testBackend" :class="{ loading: testingBackend }">
-          {{ testingBackend ? '⏳ Testing...' : '🔌 Test Connection' }}
+          {{ testingBackend ? '⏳ Проверка...' : '🔌 Проверить связь' }}
         </button>
-        <p class="hint">Flask API server URL</p>
+        <p class="hint">Адрес API-сервиса (обычно http://127.0.0.1:18500)</p>
       </div>
 
-      <!-- Ollama Settings -->
+      <!-- Ollama -->
       <div class="settings-group">
-        <h3>🧠 Ollama Configuration</h3>
+        <h3>🧠 Ollama (модели на V100)</h3>
         <div class="setting-row">
-          <label>Ollama URL:</label>
+          <label>Адрес Ollama:</label>
           <input
             v-model="settings.ollamaUrl"
             type="text"
-            @change="saveSetting('ollamaUrl', settings.ollamaUrl)"
+            @change="onOllamaChange"
             placeholder="http://localhost:11434"
           />
         </div>
         <button @click="testOllama" :class="{ loading: testingOllama }">
-          {{ testingOllama ? '⏳ Testing...' : '🧠 Test Connection' }}
+          {{ testingOllama ? '⏳ Проверка...' : '🧠 Проверить связь' }}
         </button>
-        <p class="hint">Ollama LLM server URL</p>
+        <p class="hint">Сервер локальных моделей ({{ availableModels.length }} моделей найдено)</p>
       </div>
 
-      <!-- Simulation Settings -->
+      <!-- Обновления -->
       <div class="settings-group">
-        <h3>📊 Simulation Defaults</h3>
-        <div class="setting-row">
-          <label>Time Horizon (days):</label>
-          <input
-            v-model.number="settings.timeHorizon"
-            type="number"
-            @change="saveSetting('timeHorizon', settings.timeHorizon)"
-            min="1"
-            max="365"
-          />
-        </div>
-        <div class="setting-row">
-          <label>Simulation Steps:</label>
-          <input
-            v-model.number="settings.simulationSteps"
-            type="number"
-            @change="saveSetting('simulationSteps', settings.simulationSteps)"
-            min="1"
-            max="100"
-          />
-        </div>
-        <p class="hint">Default parameters for new simulations</p>
-      </div>
-
-      <!-- LLM Parameters -->
-      <div class="settings-group">
-        <h3>🔬 LLM Parameters</h3>
-        <div class="setting-row">
-          <label>Temperature (0.0 - 2.0):</label>
-          <input
-            v-model.number="settings.temperature"
-            type="range"
-            @change="saveSetting('temperature', settings.temperature)"
-            min="0"
-            max="2"
-            step="0.1"
-          />
-          <span class="value-display">{{ settings.temperature }}</span>
-        </div>
-        <div class="setting-row">
-          <label>Context Length:</label>
-          <input
-            v-model.number="settings.contextLength"
-            type="number"
-            @change="saveSetting('contextLength', settings.contextLength)"
-            min="512"
-            max="32768"
-            step="512"
-          />
-        </div>
-        <p class="hint">Controls randomness (0=deterministic) and context window size</p>
-      </div>
-
-      <!-- Auto-Update Settings -->
-      <div class="settings-group">
-        <h3>🔄 Application Updates</h3>
+        <h3>🔄 Обновления приложения</h3>
         <div class="setting-row checkbox">
           <label>
             <input
@@ -121,180 +74,195 @@
               type="checkbox"
               @change="saveSetting('autoUpdate', settings.autoUpdate)"
             />
-            <span>Check for updates automatically</span>
+            <span>Проверять обновления автоматически</span>
           </label>
         </div>
-        <button @click="checkUpdates">
-          🔄 Check for Updates Now
-        </button>
-        <p v-if="updateStatus" :class="updateStatus" class="update-status">
-          {{ updateMessage }}
-        </p>
+        <button @click="checkUpdates">🔄 Проверить обновления сейчас</button>
+        <p v-if="updateStatus" :class="updateStatus" class="update-status">{{ updateMessage }}</p>
       </div>
 
-      <!-- Advanced Settings -->
-      <div class="settings-group">
-        <h3>🔧 Advanced</h3>
-        <div class="setting-row checkbox">
-          <label>
-            <input
-              v-model="settings.debugMode"
-              type="checkbox"
-              @change="saveSetting('debugMode', settings.debugMode)"
-            />
-            <span>Enable debug logging</span>
-          </label>
-        </div>
-        <div class="setting-row checkbox">
-          <label>
-            <input
-              v-model="settings.useLocalModels"
-              type="checkbox"
-              @change="saveSetting('useLocalModels', settings.useLocalModels)"
-            />
-            <span>Use only local models (no cloud API)</span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Reset Settings -->
+      <!-- Сброс -->
       <div class="settings-group danger-zone">
-        <h3>⚠️ Danger Zone</h3>
+        <h3>⚠️ Сброс</h3>
         <button @click="resetSettings" class="danger-btn">
-          🔄 Reset to Default Settings
+          🔄 Сбросить настройки приложения
         </button>
-        <p class="hint">This will reset all settings to defaults. Cannot be undone.</p>
+        <p class="hint">Сбросит настройки интерфейса к значениям по умолчанию.</p>
       </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Подвал -->
     <div class="settings-footer">
-      <p class="version">Version: {{ appVersion }}</p>
-      <p class="saved" v-if="showSaved">✅ Settings saved</p>
+      <p class="version">Версия: {{ appVersion }}</p>
+      <p class="saved" v-if="showSaved">✅ Сохранено</p>
     </div>
   </div>
 </template>
 
 <script>
+const DEFAULTS = {
+  model: '',
+  backendUrl: 'http://127.0.0.1:18500',
+  ollamaUrl: 'http://localhost:11434',
+  autoUpdate: true,
+};
+
 export default {
   name: 'SettingsPanel',
   props: {
-    appVersion: {
-      type: String,
-      default: '0.1.0',
-    },
+    appVersion: { type: String, default: '0.1.4' },
   },
   emits: ['close', 'settings-changed'],
   data() {
     return {
-      settings: {
-        model: 'qwen3.5:35b',
-        backendUrl: 'http://127.0.0.1:18500',
-        ollamaUrl: 'http://localhost:11434',
-        timeHorizon: 90,
-        simulationSteps: 30,
-        temperature: 0.7,
-        contextLength: 4096,
-        autoUpdate: true,
-        debugMode: false,
-        useLocalModels: true,
-      },
+      settings: { ...DEFAULTS },
       availableModels: [],
+      activeBackendModel: '',
       testingBackend: false,
       testingOllama: false,
       updateStatus: null,
       updateMessage: '',
+      modelStatus: '',
+      modelStatusType: 'success',
       showSaved: false,
     };
   },
   mounted() {
     this.loadSettings();
     this.loadAvailableModels();
+    this.loadActiveModel();
   },
   methods: {
     loadSettings() {
-      // Load from localStorage
       const saved = localStorage.getItem('mirofish_settings');
       if (saved) {
         try {
-          this.settings = JSON.parse(saved);
+          this.settings = { ...DEFAULTS, ...JSON.parse(saved) };
         } catch (e) {
-          console.error('Failed to load settings:', e);
+          console.error('Не удалось загрузить настройки:', e);
         }
       }
     },
+
     async loadAvailableModels() {
       try {
         const response = await fetch(`${this.settings.ollamaUrl}/api/tags`);
         const data = await response.json();
-        this.availableModels = (data.models || []).map(m => m.name);
+        this.availableModels = (data.models || []).map((m) => m.name);
       } catch (error) {
-        console.warn('Failed to load models:', error);
-        this.availableModels = ['qwen3.5:35b', 'qwen3.6:35b', 'gemma-4-e4b'];
+        console.warn('Не удалось загрузить модели:', error);
+        this.availableModels = [];
       }
     },
+
+    // Считываем, какая модель реально стоит на бэкенде
+    async loadActiveModel() {
+      try {
+        const r = await fetch(`${this.settings.backendUrl}/api/config/model`);
+        const data = await r.json();
+        if (data && data.model) {
+          this.activeBackendModel = data.model;
+          if (!this.settings.model) this.settings.model = data.model;
+        }
+      } catch (e) {
+        console.warn('Не удалось получить активную модель:', e);
+      }
+    },
+
+    // Реально применяем модель к бэкенду
+    async applyModel(model) {
+      this.saveSetting('model', model);
+      this.modelStatus = '⏳ Применяю модель...';
+      this.modelStatusType = 'info';
+      try {
+        const r = await fetch(`${this.settings.backendUrl}/api/config/model`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model }),
+        });
+        const data = await r.json();
+        if (r.ok && data.success) {
+          this.activeBackendModel = data.model;
+          this.modelStatus = `✅ Модель применена: ${data.model}`;
+          this.modelStatusType = 'success';
+        } else {
+          this.modelStatus = `❌ Ошибка: ${data.error || 'не удалось применить'}`;
+          this.modelStatusType = 'error';
+        }
+      } catch (e) {
+        this.modelStatus = `❌ Бэкенд недоступен: ${e.message}`;
+        this.modelStatusType = 'error';
+      }
+      setTimeout(() => { this.modelStatus = ''; }, 4000);
+    },
+
+    onOllamaChange() {
+      this.saveSetting('ollamaUrl', this.settings.ollamaUrl);
+      this.loadAvailableModels();
+    },
+
     saveSetting(key, value) {
       this.settings[key] = value;
       localStorage.setItem('mirofish_settings', JSON.stringify(this.settings));
-
-      // Show saved indicator
       this.showSaved = true;
-      setTimeout(() => {
-        this.showSaved = false;
-      }, 2000);
-
+      setTimeout(() => { this.showSaved = false; }, 2000);
       this.$emit('settings-changed', this.settings);
     },
+
     async testBackend() {
       this.testingBackend = true;
       try {
-        const response = await fetch(`${this.settings.backendUrl}/health`);
-        if (response.ok) {
+        const r = await fetch(`${this.settings.backendUrl}/health`);
+        if (r.ok) {
           this.updateStatus = 'success';
-          this.updateMessage = '✅ Backend connection OK';
+          this.updateMessage = '✅ Бэкенд на связи';
         } else {
           this.updateStatus = 'error';
-          this.updateMessage = '❌ Backend returned error';
+          this.updateMessage = `❌ Бэкенд ответил ошибкой (${r.status})`;
         }
       } catch (error) {
         this.updateStatus = 'error';
-        this.updateMessage = `❌ Connection failed: ${error.message}`;
+        this.updateMessage = `❌ Нет связи: ${error.message}`;
       }
       this.testingBackend = false;
       setTimeout(() => { this.updateStatus = null; }, 3000);
     },
+
     async testOllama() {
       this.testingOllama = true;
       try {
-        const response = await fetch(`${this.settings.ollamaUrl}/api/tags`);
-        if (response.ok) {
+        const r = await fetch(`${this.settings.ollamaUrl}/api/tags`);
+        if (r.ok) {
           this.updateStatus = 'success';
-          this.updateMessage = '✅ Ollama connection OK';
+          this.updateMessage = '✅ Ollama на связи';
           await this.loadAvailableModels();
         } else {
           this.updateStatus = 'error';
-          this.updateMessage = '❌ Ollama returned error';
+          this.updateMessage = '❌ Ollama ответила ошибкой';
         }
       } catch (error) {
         this.updateStatus = 'error';
-        this.updateMessage = `❌ Connection failed: ${error.message}`;
+        this.updateMessage = `❌ Нет связи: ${error.message}`;
       }
       this.testingOllama = false;
       setTimeout(() => { this.updateStatus = null; }, 3000);
     },
+
     checkUpdates() {
       if (window.electronAPI) {
         window.electronAPI.checkForUpdates();
         this.updateStatus = 'info';
-        this.updateMessage = '⏳ Checking for updates...';
+        this.updateMessage = '⏳ Проверяю обновления...';
         setTimeout(() => { this.updateStatus = null; }, 3000);
       } else {
         this.updateStatus = 'info';
-        this.updateMessage = 'ℹ️ Auto-updates only available in Electron app';
+        this.updateMessage = 'ℹ️ Автообновления доступны только в приложении';
+        setTimeout(() => { this.updateStatus = null; }, 3000);
       }
     },
+
     resetSettings() {
-      if (confirm('Are you sure? This will reset all settings to defaults.')) {
+      if (confirm('Сбросить настройки интерфейса к значениям по умолчанию?')) {
         localStorage.removeItem('mirofish_settings');
         location.reload();
       }
@@ -308,7 +276,8 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  max-height: 90vh;
+  background: #f5f7fa;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -318,185 +287,114 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 18px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .settings-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .close-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
-
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
-}
+.close-btn:hover { background: rgba(255, 255, 255, 0.35); transform: scale(1.08); }
 
 .settings-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 18px;
 }
 
 .settings-group {
   background: white;
-  padding: 20px;
+  padding: 18px;
   border-radius: 8px;
-  margin-bottom: 15px;
+  margin-bottom: 14px;
   border-left: 4px solid #667eea;
 }
-
-.settings-group.danger-zone {
-  border-left-color: #ef4444;
-  background: #fef2f2;
-}
-
-.settings-group h3 {
-  margin: 0 0 15px 0;
-  color: #1f2937;
-  font-size: 16px;
-}
+.settings-group.danger-zone { border-left-color: #ef4444; background: #fef2f2; }
+.settings-group h3 { margin: 0 0 14px 0; color: #1f2937; font-size: 15px; }
 
 .setting-row {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   gap: 10px;
 }
-
-.setting-row label {
-  min-width: 150px;
-  font-weight: 500;
-  color: #374151;
-}
-
+.setting-row label { min-width: 130px; font-weight: 500; color: #374151; font-size: 14px; }
 .setting-row input[type="text"],
-.setting-row input[type="number"],
 .setting-row select {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 14px;
-  transition: all 0.3s ease;
 }
-
-.setting-row input:focus,
-.setting-row select:focus {
+.setting-row input:focus, .setting-row select:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
+.setting-row.checkbox label { display: flex; align-items: center; gap: 10px; min-width: auto; cursor: pointer; }
+.setting-row.checkbox input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 
-.setting-row input[type="range"] {
-  flex: 1;
-}
-
-.value-display {
-  min-width: 50px;
-  text-align: right;
-  color: #667eea;
-  font-weight: 600;
-}
-
-.setting-row.checkbox {
-  flex-direction: row;
-  align-items: center;
-}
-
-.setting-row.checkbox label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: auto;
+.mini-btn {
+  padding: 6px 10px;
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
   cursor: pointer;
+  font-size: 14px;
 }
+.mini-btn:hover { background: #e0e7ff; }
 
-.setting-row.checkbox input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-}
-
-.hint {
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 8px 0 0 0;
-}
+.hint { font-size: 12px; color: #9ca3af; margin: 8px 0 0 0; }
+.hint b { color: #4f46e5; }
 
 button {
-  padding: 10px 16px;
-  background-color: #667eea;
+  padding: 9px 15px;
+  background: #667eea;
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s ease;
-  margin-top: 10px;
+  transition: all 0.2s ease;
+  margin-top: 8px;
 }
+button:hover:not(.danger-btn):not(.loading):not(.mini-btn) { background: #5568d3; }
+button.loading { opacity: 0.6; cursor: not-allowed; }
+button.mini-btn { margin-top: 0; }
 
-button:hover:not(.danger-btn):not(.loading) {
-  background-color: #5568d3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-button.loading {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.danger-btn {
-  background-color: #ef4444;
-  width: 100%;
-}
-
-.danger-btn:hover {
-  background-color: #dc2626;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
+.danger-btn { background: #ef4444; width: 100%; }
+.danger-btn:hover { background: #dc2626; }
 
 .update-status {
   margin-top: 10px;
-  padding: 10px;
+  padding: 9px;
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
 }
-
-.update-status.success {
-  background-color: #d1fae5;
-  color: #065f46;
-}
-
-.update-status.error {
-  background-color: #fee2e2;
-  color: #991b1b;
-}
-
-.update-status.info {
-  background-color: #dbeafe;
-  color: #0c4a6e;
-}
+.update-status.success { background: #d1fae5; color: #065f46; }
+.update-status.error { background: #fee2e2; color: #991b1b; }
+.update-status.info { background: #dbeafe; color: #0c4a6e; }
 
 .settings-footer {
-  padding: 15px 20px;
+  padding: 13px 20px;
   background: #f9fafb;
   border-top: 1px solid #e5e7eb;
   display: flex;
@@ -505,14 +403,6 @@ button.loading {
   font-size: 12px;
   color: #6b7280;
 }
-
-.version {
-  margin: 0;
-}
-
-.saved {
-  margin: 0;
-  color: #10b981;
-  font-weight: 600;
-}
+.settings-footer p { margin: 0; }
+.saved { color: #10b981; font-weight: 600; }
 </style>

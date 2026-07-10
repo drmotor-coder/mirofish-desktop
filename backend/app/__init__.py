@@ -72,6 +72,28 @@ def create_app(config_class=Config):
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}
+
+    # Настройки, изменяемые из интерфейса: текущая LLM-модель
+    from .utils import runtime_config
+
+    @app.route('/api/config/model', methods=['GET'])
+    def get_active_model():
+        return {
+            'success': True,
+            'model': runtime_config.get_model() or Config.LLM_MODEL_NAME,
+            'base_url': Config.LLM_BASE_URL,
+            'source': 'ui' if runtime_config.get_model() else 'env',
+        }
+
+    @app.route('/api/config/model', methods=['POST'])
+    def set_active_model():
+        data = request.get_json(silent=True) or {}
+        model = (data.get('model') or '').strip()
+        if not model:
+            return {'success': False, 'error': 'model is required'}, 400
+        runtime_config.set_model(model)
+        get_logger('mirofish').info(f"LLM-модель переключена на: {model}")
+        return {'success': True, 'model': model}
     
     if should_log_startup:
         logger.info("MiroFish Backend 启动完成")

@@ -9,11 +9,12 @@ from typing import Optional, Dict, Any, List
 from openai import OpenAI
 
 from ..config import Config
+from .runtime_config import get_model as get_runtime_model
 
 
 class LLMClient:
     """LLM客户端"""
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -22,7 +23,8 @@ class LLMClient:
     ):
         self.api_key = api_key or Config.LLM_API_KEY
         self.base_url = base_url or Config.LLM_BASE_URL
-        self.model = model or Config.LLM_MODEL_NAME
+        # Приоритет: явно переданная модель -> выбранная в интерфейсе -> из .env
+        self.model = model or get_runtime_model() or Config.LLM_MODEL_NAME
         
         if not self.api_key:
             raise ValueError("LLM_API_KEY 未配置")

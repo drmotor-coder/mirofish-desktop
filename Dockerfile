@@ -10,6 +10,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 
 WORKDIR /app
 
+# Electron нужен только для десктоп-сборки, в контейнере он не запускается —
+# не качаем его бинарник при npm ci
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+
 # 先复制依赖描述文件以利用缓存
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/package-lock.json ./frontend/
