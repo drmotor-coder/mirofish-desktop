@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Process from '../views/MainView.vue'
 import SimulationView from '../views/SimulationView.vue'
@@ -45,7 +45,8 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  // hash-режим (#/...) — работает при загрузке через file:// в Electron
+  history: createWebHashHistory(),
   routes
 })
 

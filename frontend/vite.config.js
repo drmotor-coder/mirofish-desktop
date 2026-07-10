@@ -4,6 +4,8 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Относительные пути к ассетам — обязательно для загрузки через file:// в Electron
+  base: './',
   plugins: [vue()],
   resolve: {
     alias: {
