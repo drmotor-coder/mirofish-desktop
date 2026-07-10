@@ -2,11 +2,8 @@ const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
-const { spawn } = require('child_process');
-const os = require('os');
 
 let mainWindow;
-let backendProcess;
 
 // Конфиг auto-updates
 autoUpdater.checkForUpdatesAndNotify();
@@ -39,35 +36,16 @@ const createWindow = () => {
   });
 };
 
-const startBackend = () => {
-  const pythonPath = path.join(app.getAppPath(), 'backend', 'venv', 'Scripts', 'python.exe');
-  const scriptPath = path.join(app.getAppPath(), 'backend', 'run.py');
-
-  backendProcess = spawn('python', [scriptPath], {
-    cwd: path.join(app.getAppPath(), 'backend'),
-    stdio: 'pipe',
-  });
-
-  backendProcess.stdout.on('data', (data) => {
-    console.log(`Backend: ${data}`);
-  });
-
-  backendProcess.stderr.on('data', (data) => {
-    console.error(`Backend Error: ${data}`);
-  });
-};
+// Бэкенд MiroFish работает отдельно как заводской сервис (Docker/watchdog),
+// поэтому приложение его НЕ запускает — только подключается к нему как клиент.
 
 app.on('ready', () => {
-  startBackend();
   createWindow();
   createMenu();
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    if (backendProcess) {
-      backendProcess.kill();
-    }
     app.quit();
   }
 });

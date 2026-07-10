@@ -205,7 +205,7 @@ export default {
     return {
       settings: {
         model: 'qwen3.5:35b',
-        backendUrl: 'http://localhost:5000',
+        backendUrl: 'http://127.0.0.1:18500',
         ollamaUrl: 'http://localhost:11434',
         cudaDevice: '0',
         timeHorizon: 90,
