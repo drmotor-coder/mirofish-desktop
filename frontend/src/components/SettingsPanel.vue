@@ -56,22 +56,6 @@
         <p class="hint">Ollama LLM server URL</p>
       </div>
 
-      <!-- GPU Settings -->
-      <div class="settings-group">
-        <h3>🎮 GPU Configuration</h3>
-        <div class="setting-row">
-          <label>CUDA Device:</label>
-          <input
-            v-model="settings.cudaDevice"
-            type="text"
-            @change="saveSetting('cudaDevice', settings.cudaDevice)"
-            placeholder="0"
-            maxlength="1"
-          />
-        </div>
-        <p class="hint">CUDA_VISIBLE_DEVICES (0 for first GPU, 1 for second). Default: 0</p>
-      </div>
-
       <!-- Simulation Settings -->
       <div class="settings-group">
         <h3>📊 Simulation Defaults</h3>
@@ -207,7 +191,6 @@ export default {
         model: 'qwen3.5:35b',
         backendUrl: 'http://127.0.0.1:18500',
         ollamaUrl: 'http://localhost:11434',
-        cudaDevice: '0',
         timeHorizon: 90,
         simulationSteps: 30,
         temperature: 0.7,
