@@ -1,6 +1,6 @@
 {
   "name": "mirofish",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "MiroFish - 简洁通用的群体智能引擎，预测万物",
   "main": "electron/main.js",
   "homepage": "./",
@@ -32,6 +32,7 @@
     "files": [
       "frontend/dist/**/*",
       "electron/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "directories": {
@@ -51,7 +52,8 @@
       "certificateFile": null,
       "certificatePassword": null,
       "sign": null,
-      "signingHashAlgorithms": []
+      "signingHashAlgorithms": [],
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,

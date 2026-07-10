@@ -39,7 +39,7 @@ const statusTitle = computed(() =>
 // Пингуем бэкенд, чтобы пользователь видел статус связи
 const checkBackend = async () => {
   try {
-    await service.get('/api/graph/list', { timeout: 5000, validateStatus: () => true })
+    await service.get('/health', { timeout: 5000, validateStatus: () => true })
     backendOnline.value = true
   } catch (e) {
     backendOnline.value = false
