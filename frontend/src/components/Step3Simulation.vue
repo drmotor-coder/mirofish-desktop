@@ -30,6 +30,11 @@
               <span class="stat-value mono">{{ runStatus.twitter_actions_count || 0 }}</span>
             </span>
           </div>
+          <!-- Прогресс -->
+          <div class="progress-track">
+            <div class="progress-fill" :style="{ width: twitterProgress + '%' }"></div>
+            <span class="progress-label">{{ twitterProgress }}%</span>
+          </div>
           <!-- 可用动作提示 -->
           <div class="actions-tooltip">
             <div class="tooltip-title">Available Actions</div>
@@ -70,6 +75,11 @@
               <span class="stat-label">ACTS</span>
               <span class="stat-value mono">{{ runStatus.reddit_actions_count || 0 }}</span>
             </span>
+          </div>
+          <!-- Прогресс -->
+          <div class="progress-track">
+            <div class="progress-fill" :style="{ width: redditProgress + '%' }"></div>
+            <span class="progress-label">{{ redditProgress }}%</span>
           </div>
           <!-- 可用动作提示 -->
           <div class="actions-tooltip">
@@ -358,6 +368,23 @@ const twitterElapsedTime = computed(() => {
 // Reddit平台的模拟流逝时间
 const redditElapsedTime = computed(() => {
   return formatElapsedTime(runStatus.value.reddit_current_round || 0)
+})
+
+// Прогресс в процентах по раундам
+const twitterProgress = computed(() => {
+  const total = runStatus.value.total_rounds || props.maxRounds || 0
+  const cur = runStatus.value.twitter_current_round || 0
+  if (runStatus.value.twitter_completed) return 100
+  if (!total) return 0
+  return Math.min(100, Math.round((cur / total) * 100))
+})
+
+const redditProgress = computed(() => {
+  const total = runStatus.value.total_rounds || props.maxRounds || 0
+  const cur = runStatus.value.reddit_current_round || 0
+  if (runStatus.value.reddit_completed) return 100
+  if (!total) return 0
+  return Math.min(100, Math.round((cur / total) * 100))
 })
 
 // Methods
@@ -836,6 +863,32 @@ onUnmounted(() => {
 .platform-stats {
   display: flex;
   gap: 10px;
+}
+
+.progress-track {
+  position: relative;
+  height: 16px;
+  background: #EEE;
+  border-radius: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  transition: width 0.5s ease;
+}
+.progress-label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #333;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .stat {
