@@ -10,7 +10,16 @@
             <div class="report-meta">
               <span class="report-tag">Prediction Report</span>
               <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
+              <button
+                class="save-report-btn"
+                :disabled="saving || !isComplete"
+                :title="isComplete ? 'Сохранить отчёт в файл (.md / .txt)' : 'Отчёт ещё генерируется'"
+                @click="saveReportToFile"
+              >
+                {{ saving ? '⏳ Сохранение...' : '💾 Сохранить отчёт' }}
+              </button>
             </div>
+            <p v-if="saveMessage" class="save-message" :class="saveMessageType">{{ saveMessage }}</p>
             <h1 class="main-title">{{ reportOutline.title }}</h1>
             <p class="sub-title">{{ reportOutline.summary }}</p>
             <div class="header-divider"></div>
@@ -393,10 +402,15 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getAgentLog, getConsoleLog } from '../api/report'
+import { getAgentLog, getConsoleLog, downloadReportMarkdown } from '../api/report'
 
 const router = useRouter()
 const { t } = useI18n()
+
+// Сохранение отчёта в файл
+const saving = ref(false)
+const saveMessage = ref('')
+const saveMessageType = ref('success')
 
 const props = defineProps({
   reportId: String,
@@ -410,6 +424,50 @@ const emit = defineEmits(['add-log', 'update-status'])
 const goToInteraction = () => {
   if (props.reportId) {
     router.push({ name: 'Interaction', params: { reportId: props.reportId } })
+  }
+}
+
+// Сохранить отчёт в файл (.md/.txt)
+const saveReportToFile = async () => {
+  if (!props.reportId || saving.value) return
+  saving.value = true
+  saveMessage.value = ''
+  try {
+    const md = await downloadReportMarkdown(props.reportId)
+    const title = (reportOutline.value?.title || 'mirofish-report')
+      .replace(/[\\/:*?"<>|]/g, '_').slice(0, 60)
+    const defaultName = `${title}.md`
+
+    if (window.electronAPI?.saveReport) {
+      // Нативный диалог «Сохранить как» (выбор папки)
+      const res = await window.electronAPI.saveReport(md, defaultName)
+      if (res?.success) {
+        saveMessageType.value = 'success'
+        saveMessage.value = `✅ Сохранено: ${res.path}`
+      } else if (res?.canceled) {
+        saveMessage.value = ''
+      } else {
+        saveMessageType.value = 'error'
+        saveMessage.value = `❌ Ошибка: ${res?.error || 'не удалось сохранить'}`
+      }
+    } else {
+      // Фолбэк для браузера — обычное скачивание
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = defaultName
+      a.click()
+      URL.revokeObjectURL(url)
+      saveMessageType.value = 'success'
+      saveMessage.value = '✅ Файл скачан'
+    }
+  } catch (e) {
+    saveMessageType.value = 'error'
+    saveMessage.value = `❌ Ошибка: ${e.message}`
+  } finally {
+    saving.value = false
+    if (saveMessage.value) setTimeout(() => { saveMessage.value = '' }, 6000)
   }
 }
 
@@ -2371,6 +2429,35 @@ watch(() => props.reportId, (newId) => {
   gap: 12px;
   margin-bottom: 24px;
 }
+
+.save-report-btn {
+  margin-left: auto;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.save-report-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+.save-report-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.save-message {
+  font-size: 13px;
+  margin: -12px 0 16px 0;
+  word-break: break-all;
+}
+.save-message.success { color: #0a7c3a; }
+.save-message.error { color: #b02020; }
 
 .report-tag {
   background: #000000;

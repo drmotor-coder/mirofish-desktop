@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Модели
   getAvailableModels: () => ipcRenderer.invoke('get-available-models'),
   setSelectedModel: (model) => ipcRenderer.send('set-model', model),
+
+  // Сохранение отчёта в файл (нативный диалог)
+  saveReport: (content, defaultName) => ipcRenderer.invoke('save-report', { content, defaultName }),
 });

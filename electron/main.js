@@ -1,6 +1,7 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
 let mainWindow;
@@ -149,4 +150,26 @@ autoUpdater.on('update-downloaded', () => {
 
 ipcMain.on('restart-app', () => {
   autoUpdater.quitAndInstall();
+});
+
+// Сохранение отчёта в файл через нативный диалог «Сохранить как»
+ipcMain.handle('save-report', async (event, { content, defaultName }) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Сохранить отчёт',
+      defaultPath: defaultName || 'mirofish-report.md',
+      filters: [
+        { name: 'Markdown', extensions: ['md'] },
+        { name: 'Текстовый файл', extensions: ['txt'] },
+        { name: 'Все файлы', extensions: ['*'] },
+      ],
+    });
+    if (canceled || !filePath) {
+      return { success: false, canceled: true };
+    }
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return { success: true, path: filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });

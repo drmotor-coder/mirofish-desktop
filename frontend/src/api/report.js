@@ -43,6 +43,16 @@ export const getReport = (reportId) => {
 }
 
 /**
+ * Скачать готовый markdown отчёта (сырой текст)
+ * @param {string} reportId
+ * @returns {Promise<string>} markdown-контент
+ */
+export const downloadReportMarkdown = async (reportId) => {
+  const res = await service.get(`/api/report/${reportId}/download`, { responseType: 'text' })
+  return typeof res === 'string' ? res : (res.data ?? '')
+}
+
+/**
  * 与 Report Agent 对话
  * @param {Object} data - { simulation_id, message, chat_history? }
  */
