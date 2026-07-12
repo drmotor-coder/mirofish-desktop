@@ -78,7 +78,9 @@
           </label>
         </div>
         <button @click="checkUpdates">🔄 Проверить обновления сейчас</button>
+        <button class="install-update-btn" @click="installUpdate">⬇️ Установить обновление и перезапустить</button>
         <p v-if="updateStatus" :class="updateStatus" class="update-status">{{ updateMessage }}</p>
+        <p class="hint">Если обновление скачано — установит его и перезапустит приложение</p>
       </div>
 
       <!-- Сброс -->
@@ -271,6 +273,18 @@ export default {
       }
     },
 
+    installUpdate() {
+      if (window.electronAPI?.restartApp) {
+        this.updateStatus = 'info';
+        this.updateMessage = '⏳ Устанавливаю обновление и перезапускаю...';
+        setTimeout(() => window.electronAPI.restartApp(), 500);
+      } else {
+        this.updateStatus = 'error';
+        this.updateMessage = '❌ Доступно только в приложении';
+        setTimeout(() => { this.updateStatus = null; }, 3000);
+      }
+    },
+
     resetSettings() {
       if (confirm('Сбросить настройки интерфейса к значениям по умолчанию?')) {
         localStorage.removeItem('mirofish_settings');
@@ -391,6 +405,14 @@ button.mini-btn { margin-top: 0; }
 
 .danger-btn { background: #ef4444; width: 100%; }
 .danger-btn:hover { background: #dc2626; }
+
+.install-update-btn {
+  background: #10b981;
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+.install-update-btn:hover:not(.loading) { background: #059669; }
 
 .update-status {
   margin-top: 10px;
