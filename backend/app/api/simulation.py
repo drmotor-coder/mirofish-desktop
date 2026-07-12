@@ -785,6 +785,44 @@ def get_simulation(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>', methods=['DELETE'])
+def delete_simulation(simulation_id: str):
+    """
+    Удалить симуляцию из истории (карточка на главной странице).
+    Каскадно удаляет связанный отчёт, если он есть. Проект/граф не трогает —
+    он может использоваться другими симуляциями.
+    """
+    try:
+        from ..services.report_agent import ReportManager
+
+        # Каскадно удалить связанный отчёт (если есть)
+        try:
+            report = ReportManager.get_report_by_simulation(simulation_id)
+            if report:
+                ReportManager.delete_report(report.report_id)
+        except Exception as e:
+            logger.warning(f"Не удалось удалить связанный отчёт для {simulation_id}: {e}")
+
+        manager = SimulationManager()
+        success = manager.delete_simulation(simulation_id)
+
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
+        return jsonify({"success": True, "message": f"Симуляция {simulation_id} удалена"})
+
+    except Exception as e:
+        logger.error(f"Ошибка удаления симуляции: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @simulation_bp.route('/list', methods=['GET'])
 def list_simulations():
     """

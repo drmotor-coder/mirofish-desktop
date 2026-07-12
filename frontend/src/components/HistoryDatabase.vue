@@ -51,8 +51,8 @@
               class="delete-card-btn"
               title="Удалить из истории"
               @click.stop="deleteProject(project)"
-              :disabled="deletingId === project.project_id"
-            >{{ deletingId === project.project_id ? '⏳' : '🗑' }}</button>
+              :disabled="deletingId === project.simulation_id"
+            >{{ deletingId === project.simulation_id ? '⏳' : '🗑' }}</button>
           </div>
         </div>
 
@@ -200,8 +200,7 @@
 import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getSimulationHistory } from '../api/simulation'
-import { deleteProject as apiDeleteProject } from '../api/graph'
+import { getSimulationHistory, deleteSimulation as apiDeleteSimulation } from '../api/simulation'
 
 const router = useRouter()
 const route = useRoute()
@@ -460,19 +459,20 @@ const loadHistory = async () => {
   }
 }
 
-// Удалить проект (симуляцию) из истории
+// Удалить симуляцию (карточку) из истории. Каскадно удаляет связанный отчёт
+// на бэкенде; проект/граф не трогает — он может использоваться другими симуляциями.
 const deleteProject = async (project) => {
-  const id = project.project_id
+  const id = project.simulation_id
   if (!id) return
   if (!confirm(`Удалить симуляцию "${getSimulationTitle(project.simulation_requirement)}" из истории? Это действие необратимо.`)) {
     return
   }
   deletingId.value = id
   try {
-    const res = await apiDeleteProject(id)
+    const res = await apiDeleteSimulation(id)
     if (res.success) {
-      projects.value = projects.value.filter(p => p.project_id !== id)
-      if (selectedProject.value?.project_id === id) {
+      projects.value = projects.value.filter(p => p.simulation_id !== id)
+      if (selectedProject.value?.simulation_id === id) {
         selectedProject.value = null
       }
     } else {

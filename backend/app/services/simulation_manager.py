@@ -478,6 +478,20 @@ class SimulationManager:
         
         return simulations
     
+    def delete_simulation(self, simulation_id: str) -> bool:
+        """
+        Удалить симуляцию и все её файлы (для очистки истории).
+        Не трогает связанный проект/граф — они могут использоваться другими симуляциями.
+        """
+        import shutil
+        # Прямая проверка пути — _get_simulation_dir создаёт папку как побочный эффект
+        sim_dir = os.path.join(self.SIMULATION_DATA_DIR, simulation_id)
+        if not os.path.exists(sim_dir):
+            return False
+        shutil.rmtree(sim_dir)
+        self._simulations.pop(simulation_id, None)
+        return True
+
     def get_profiles(self, simulation_id: str, platform: str = "reddit") -> List[Dict[str, Any]]:
         """获取模拟的Agent Profile"""
         state = self._load_simulation_state(simulation_id)
