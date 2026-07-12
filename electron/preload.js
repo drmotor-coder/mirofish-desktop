@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Сохранение отчёта в файл (нативный диалог)
   saveReport: (content, defaultName) => ipcRenderer.invoke('save-report', { content, defaultName }),
+
+  // Реальная версия приложения
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 });

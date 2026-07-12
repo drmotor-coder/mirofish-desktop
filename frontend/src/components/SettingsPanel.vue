@@ -93,7 +93,7 @@
 
     <!-- Подвал -->
     <div class="settings-footer">
-      <p class="version">Версия: {{ appVersion }}</p>
+      <p class="version">Версия: {{ realVersion || appVersion || 'н/д' }}</p>
       <p class="saved" v-if="showSaved">✅ Сохранено</p>
     </div>
   </div>
@@ -110,11 +110,12 @@ const DEFAULTS = {
 export default {
   name: 'SettingsPanel',
   props: {
-    appVersion: { type: String, default: '0.1.4' },
+    appVersion: { type: String, default: '' },
   },
   emits: ['close', 'settings-changed'],
   data() {
     return {
+      realVersion: '',
       settings: { ...DEFAULTS },
       availableModels: [],
       activeBackendModel: '',
@@ -131,8 +132,17 @@ export default {
     this.loadSettings();
     this.loadAvailableModels();
     this.loadActiveModel();
+    this.loadVersion();
   },
   methods: {
+    async loadVersion() {
+      try {
+        if (window.electronAPI?.getAppVersion) {
+          this.realVersion = await window.electronAPI.getAppVersion();
+        }
+      } catch (e) { /* ignore */ }
+    },
+
     loadSettings() {
       const saved = localStorage.getItem('mirofish_settings');
       if (saved) {

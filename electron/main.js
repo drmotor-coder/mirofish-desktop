@@ -66,6 +66,9 @@ ipcMain.on('check-for-updates', async () => {
   }
 });
 
+// Реальная версия приложения
+ipcMain.handle('get-app-version', () => app.getVersion());
+
 // IPC для выбора модели
 ipcMain.handle('get-available-models', async () => {
   try {
