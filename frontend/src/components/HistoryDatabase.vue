@@ -33,20 +33,26 @@
         <div class="card-header">
           <span class="card-id">{{ formatSimulationId(project.simulation_id) }}</span>
           <div class="card-status-icons">
-            <span 
-              class="status-icon" 
+            <span
+              class="status-icon"
               :class="{ available: project.project_id, unavailable: !project.project_id }"
               :title="$t('history.graphBuild')"
             >◇</span>
-            <span 
-              class="status-icon available" 
+            <span
+              class="status-icon available"
               :title="$t('history.envSetup')"
             >◈</span>
-            <span 
-              class="status-icon" 
+            <span
+              class="status-icon"
               :class="{ available: project.report_id, unavailable: !project.report_id }"
               :title="$t('history.analysisReport')"
             >◆</span>
+            <button
+              class="delete-card-btn"
+              title="Удалить из истории"
+              @click.stop="deleteProject(project)"
+              :disabled="deletingId === project.project_id"
+            >{{ deletingId === project.project_id ? '⏳' : '🗑' }}</button>
           </div>
         </div>
 
@@ -195,6 +201,7 @@ import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } f
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getSimulationHistory } from '../api/simulation'
+import { deleteProject as apiDeleteProject } from '../api/graph'
 
 const router = useRouter()
 const route = useRoute()
@@ -207,6 +214,7 @@ const isExpanded = ref(false)
 const hoveringCard = ref(null)
 const historyContainer = ref(null)
 const selectedProject = ref(null)  // 当前选中的项目（用于弹窗）
+const deletingId = ref(null)  // ID проекта, который сейчас удаляется
 let observer = null
 let isAnimating = false  // 动画锁，防止闪烁
 let expandDebounceTimer = null  // 防抖定时器
@@ -449,6 +457,31 @@ const loadHistory = async () => {
     projects.value = []
   } finally {
     loading.value = false
+  }
+}
+
+// Удалить проект (симуляцию) из истории
+const deleteProject = async (project) => {
+  const id = project.project_id
+  if (!id) return
+  if (!confirm(`Удалить симуляцию "${getSimulationTitle(project.simulation_requirement)}" из истории? Это действие необратимо.`)) {
+    return
+  }
+  deletingId.value = id
+  try {
+    const res = await apiDeleteProject(id)
+    if (res.success) {
+      projects.value = projects.value.filter(p => p.project_id !== id)
+      if (selectedProject.value?.project_id === id) {
+        selectedProject.value = null
+      }
+    } else {
+      alert(`Не удалось удалить: ${res.error || 'неизвестная ошибка'}`)
+    }
+  } catch (e) {
+    alert(`Ошибка удаления: ${e.message}`)
+  } finally {
+    deletingId.value = null
   }
 }
 
@@ -730,6 +763,25 @@ onUnmounted(() => {
 .status-icon.unavailable {
   color: #D1D5DB;
   opacity: 0.5;
+}
+
+.delete-card-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.4;
+  padding: 0 0 0 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+.delete-card-btn:hover:not(:disabled) {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.delete-card-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 /* 轮数进度显示 */

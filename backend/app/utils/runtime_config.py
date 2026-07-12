@@ -75,6 +75,13 @@ def set_lmstudio_model(model: str) -> None:
     _write(data)
 
 
+def resolve_ollama_endpoint() -> dict:
+    """Всегда возвращает Ollama/V100, независимо от выбранного режима.
+    Используется как надёжный fallback (например, если модель на LM Studio
+    'уплыла' в другой язык и нужно перегенерировать текст)."""
+    return {"base_url": OLLAMA_BASE, "api_key": "ollama", "model": get_model() or DEFAULT_OLLAMA_MODEL, "engine": "ollama"}
+
+
 def resolve_endpoint(task: str = "heavy") -> dict:
     """
     Возвращает {base_url, api_key, model} для задачи.

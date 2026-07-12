@@ -169,6 +169,7 @@ export default {
     this.loadActiveModel();
     this.loadVersion();
     this.loadCompute();
+    this.subscribeToUpdateEvents();
   },
   methods: {
     async loadCompute() {
@@ -332,12 +333,38 @@ export default {
       setTimeout(() => { this.updateStatus = null; }, 3000);
     },
 
+    // Подписка на реальный результат проверки обновлений (не фейковый таймер)
+    subscribeToUpdateEvents() {
+      if (!window.electronAPI) return;
+      window.electronAPI.onUpdateChecking?.(() => {
+        this.updateStatus = 'info';
+        this.updateMessage = '⏳ Проверяю обновления...';
+      });
+      window.electronAPI.onUpdateAvailable?.((version) => {
+        this.updateStatus = 'info';
+        this.updateMessage = `⬇️ Найдено обновление ${version || ''} — скачивается...`;
+      });
+      window.electronAPI.onUpdateNotAvailable?.(() => {
+        this.updateStatus = 'success';
+        this.updateMessage = '✅ У вас последняя версия, обновлений нет';
+        setTimeout(() => { this.updateStatus = null; }, 5000);
+      });
+      window.electronAPI.onUpdateError?.((message) => {
+        this.updateStatus = 'error';
+        this.updateMessage = `❌ Ошибка проверки обновлений: ${message}`;
+        setTimeout(() => { this.updateStatus = null; }, 6000);
+      });
+      window.electronAPI.onUpdateDownloaded?.(() => {
+        this.updateStatus = 'success';
+        this.updateMessage = '✅ Обновление скачано — нажмите "Установить обновление"';
+      });
+    },
+
     checkUpdates() {
       if (window.electronAPI) {
         window.electronAPI.checkForUpdates();
         this.updateStatus = 'info';
         this.updateMessage = '⏳ Проверяю обновления...';
-        setTimeout(() => { this.updateStatus = null; }, 3000);
       } else {
         this.updateStatus = 'info';
         this.updateMessage = 'ℹ️ Автообновления доступны только в приложении';

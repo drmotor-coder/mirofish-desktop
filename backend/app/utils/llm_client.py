@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any, List
 from openai import OpenAI
 
 from ..config import Config
-from .runtime_config import resolve_endpoint
+from .runtime_config import resolve_endpoint, resolve_ollama_endpoint
 
 
 class LLMClient:
@@ -20,10 +20,13 @@ class LLMClient:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
-        task: str = "heavy"
+        task: str = "heavy",
+        force_ollama: bool = False
     ):
         # Резолвер выбирает движок/модель по режиму (V100 / LM Studio / обе).
-        ep = resolve_endpoint(task)
+        # force_ollama игнорирует режим — используется как надёжный fallback
+        # (например, для перегенерации текста, если модель "уплыла" в другой язык).
+        ep = resolve_ollama_endpoint() if force_ollama else resolve_endpoint(task)
         self.api_key = api_key or ep["api_key"] or Config.LLM_API_KEY
         self.base_url = base_url or ep["base_url"] or Config.LLM_BASE_URL
         self.model = model or ep["model"] or Config.LLM_MODEL_NAME
@@ -41,17 +44,18 @@ class LLMClient:
         messages: List[Dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 4096,
-        response_format: Optional[Dict] = None
+        response_format: Optional[Dict] = None,
+        _retry: int = 0
     ) -> str:
         """
         发送聊天请求
-        
+
         Args:
             messages: 消息列表
             temperature: 温度参数
             max_tokens: 最大token数
             response_format: 响应格式（如JSON模式）
-            
+
         Returns:
             模型响应文本
         """
@@ -61,14 +65,30 @@ class LLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        
+
         if response_format:
             kwargs["response_format"] = response_format
         
         response = self.client.chat.completions.create(**kwargs)
-        content = response.choices[0].message.content
-        # 部分模型（如MiniMax M2.5）会在content中包含<think>思考内容，需要移除
-        content = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
+        raw_content = response.choices[0].message.content or ""
+
+        # 部分模型（如MiniMax M2.5、некоторые "думающие" модели на LM Studio）
+        # оборачивают рассуждения в <think>...</think> — вырезаем их.
+        content = re.sub(r'<think>[\s\S]*?</think>', '', raw_content).strip()
+
+        # Если после вырезания <think>...</think> ничего не осталось — модель
+        # либо не успела закрыть тег, либо закрыла его, но обрезалась ДО того,
+        # как написать сам ответ (finish_reason=length). В обоих случаях
+        # повторяем запрос с увеличенным лимитом токенов.
+        if not content and raw_content and _retry < 2:
+            return self.chat(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=min(max_tokens * 3, 16384),
+                response_format=response_format,
+                _retry=_retry + 1
+            )
+
         return content
     
     def chat_json(

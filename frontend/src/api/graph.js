@@ -68,3 +68,15 @@ export function getProject(projectId) {
     method: 'get'
   })
 }
+
+/**
+ * Удалить проект (симуляцию) из истории — граф, симуляцию и отчёт
+ * @param {String} projectId
+ * @returns {Promise}
+ */
+export function deleteProject(projectId) {
+  return service({
+    url: `/api/graph/project/${projectId}`,
+    method: 'delete'
+  })
+}

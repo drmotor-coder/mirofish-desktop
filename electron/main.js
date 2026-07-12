@@ -138,11 +138,22 @@ const createMenu = () => {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 };
 
-// Auto-updater события
-autoUpdater.on('update-available', () => {
-  if (mainWindow) {
-    mainWindow.webContents.send('update-available');
-  }
+// Auto-updater события — сообщаем результат проверки в интерфейс,
+// иначе пользователь не понимает, нашлось обновление или нет.
+autoUpdater.on('checking-for-update', () => {
+  if (mainWindow) mainWindow.webContents.send('update-checking');
+});
+
+autoUpdater.on('update-available', (info) => {
+  if (mainWindow) mainWindow.webContents.send('update-available', info?.version);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  if (mainWindow) mainWindow.webContents.send('update-not-available', info?.version);
+});
+
+autoUpdater.on('error', (err) => {
+  if (mainWindow) mainWindow.webContents.send('update-error', err?.message || String(err));
 });
 
 autoUpdater.on('update-downloaded', () => {

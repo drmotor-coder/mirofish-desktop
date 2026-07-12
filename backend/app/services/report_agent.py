@@ -1218,8 +1218,54 @@ class ReportAgent:
                 ]
             )
     
+    _CJK_RE = re.compile(r'[一-鿿]')
+    _CYR_RE = re.compile(r'[Ѐ-ӿ]')
+
+    def _fix_language_drift(self, text: str, section_title: str) -> str:
+        """
+        Защита от "уплывания" в китайский язык (характерно для некоторых
+        локальных моделей, особенно на длинных/поздних секциях).
+        Если доля китайских символов заметна на фоне русских — перегенерируем
+        текст через надёжный движок V100 (Ollama), сохраняя структуру и цитаты.
+        """
+        if not text:
+            return text
+        cjk = len(self._CJK_RE.findall(text))
+        cyr = len(self._CYR_RE.findall(text))
+        total = cjk + cyr
+        if total == 0 or (cjk / total) < 0.1:
+            return text
+
+        logger.warning(
+            f"Обнаружен уход в китайский язык в разделе '{section_title}' "
+            f"(китайских символов: {cjk}, русских: {cyr}). Перегенерирую через V100..."
+        )
+        try:
+            fixer = LLMClient(force_ollama=True)
+            fixed = fixer.chat(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Ты редактор-переводчик. Перепиши предоставленный текст ПОЛНОСТЬЮ "
+                            "на русском языке, сохранив весь смысл, структуру markdown (заголовки, "
+                            "списки, выделения) и дословные цитаты в кавычках (их можно оставить "
+                            "на исходном языке, если это цитата). Не добавляй ничего от себя и не сокращай."
+                        ),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                temperature=0.3,
+                max_tokens=4096,
+            )
+            if fixed and fixed.strip():
+                return fixed.strip()
+        except Exception as e:
+            logger.error(f"Не удалось исправить язык раздела '{section_title}': {e}")
+        return text
+
     def _generate_section_react(
-        self, 
+        self,
         section: ReportSection,
         outline: ReportOutline,
         previous_sections: List[str],
@@ -1390,6 +1436,7 @@ class ReportAgent:
 
                 # 正常结束
                 final_answer = response.split("Final Answer:")[-1].strip()
+                final_answer = self._fix_language_drift(final_answer, section.title)
                 logger.info(t('report.sectionGenDone', title=section.title, count=tool_calls_count))
 
                 if self.report_logger:
@@ -1489,6 +1536,7 @@ class ReportAgent:
             # 直接将这段内容作为最终答案，不再空转
             logger.info(t('report.sectionNoPrefix', title=section.title, count=tool_calls_count))
             final_answer = response.strip()
+            final_answer = self._fix_language_drift(final_answer, section.title)
 
             if self.report_logger:
                 self.report_logger.log_section_content(
@@ -1517,7 +1565,8 @@ class ReportAgent:
             final_answer = response.split("Final Answer:")[-1].strip()
         else:
             final_answer = response
-        
+        final_answer = self._fix_language_drift(final_answer, section.title)
+
         # 记录章节内容生成完成日志
         if self.report_logger:
             self.report_logger.log_section_content(
