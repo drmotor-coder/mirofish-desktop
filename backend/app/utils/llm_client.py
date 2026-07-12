@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any, List
 from openai import OpenAI
 
 from ..config import Config
-from .runtime_config import get_model as get_runtime_model
+from .runtime_config import resolve_endpoint
 
 
 class LLMClient:
@@ -19,12 +19,14 @@ class LLMClient:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        task: str = "heavy"
     ):
-        self.api_key = api_key or Config.LLM_API_KEY
-        self.base_url = base_url or Config.LLM_BASE_URL
-        # Приоритет: явно переданная модель -> выбранная в интерфейсе -> из .env
-        self.model = model or get_runtime_model() or Config.LLM_MODEL_NAME
+        # Резолвер выбирает движок/модель по режиму (V100 / LM Studio / обе).
+        ep = resolve_endpoint(task)
+        self.api_key = api_key or ep["api_key"] or Config.LLM_API_KEY
+        self.base_url = base_url or ep["base_url"] or Config.LLM_BASE_URL
+        self.model = model or ep["model"] or Config.LLM_MODEL_NAME
         
         if not self.api_key:
             raise ValueError("LLM_API_KEY 未配置")

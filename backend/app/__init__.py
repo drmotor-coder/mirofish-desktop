@@ -94,6 +94,34 @@ def create_app(config_class=Config):
         runtime_config.set_model(model)
         get_logger('mirofish').info(f"LLM-модель переключена на: {model}")
         return {'success': True, 'model': model}
+
+    # Вычислительный режим: v100 | lmstudio | both
+    @app.route('/api/config/compute', methods=['GET'])
+    def get_compute():
+        return {
+            'success': True,
+            'mode': runtime_config.get_mode(),
+            'ollama_model': runtime_config.get_model() or runtime_config.DEFAULT_OLLAMA_MODEL,
+            'lmstudio_model': runtime_config.get_lmstudio_model(),
+            'ollama_base': runtime_config.OLLAMA_BASE,
+            'lmstudio_base': runtime_config.LMSTUDIO_BASE,
+            'heavy': runtime_config.resolve_endpoint('heavy'),
+            'light': runtime_config.resolve_endpoint('light'),
+        }
+
+    @app.route('/api/config/compute', methods=['POST'])
+    def set_compute():
+        data = request.get_json(silent=True) or {}
+        mode = (data.get('mode') or '').strip()
+        if mode not in ('v100', 'lmstudio', 'both'):
+            return {'success': False, 'error': 'mode must be v100 | lmstudio | both'}, 400
+        runtime_config.set_mode(mode)
+        if data.get('ollama_model'):
+            runtime_config.set_model(data['ollama_model'].strip())
+        if data.get('lmstudio_model'):
+            runtime_config.set_lmstudio_model(data['lmstudio_model'].strip())
+        get_logger('mirofish').info(f"Вычислительный режим: {mode}")
+        return {'success': True, 'mode': mode}
     
     if should_log_startup:
         logger.info("MiroFish Backend 启动完成")

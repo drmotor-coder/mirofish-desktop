@@ -432,6 +432,17 @@ class SimulationRunner:
             env = os.environ.copy()
             env['PYTHONUTF8'] = '1'  # Python 3.7+ 支持，让所有 open() 默认使用 UTF-8
             env['PYTHONIOENCODING'] = 'utf-8'  # 确保 stdout/stderr 使用 UTF-8
+
+            # Прокидываем в симуляцию "лёгкий" эндпоинт по выбранному режиму
+            # (V100 / LM Studio / обе). Симуляция — массовая задача -> task='light'.
+            try:
+                from ..utils.runtime_config import resolve_endpoint
+                _ep = resolve_endpoint('light')
+                env['LLM_BASE_URL'] = _ep['base_url']
+                env['LLM_API_KEY'] = _ep['api_key']
+                env['LLM_MODEL_NAME'] = _ep['model']
+            except Exception as _e:
+                print(f"[runtime_config] не удалось применить режим к симуляции: {_e}")
             
             # 设置工作目录为模拟目录（数据库等文件会生成在此）
             # 使用 start_new_session=True 创建新的进程组，确保可以通过 os.killpg 终止所有子进程

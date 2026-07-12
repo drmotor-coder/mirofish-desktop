@@ -6,11 +6,34 @@
     </div>
 
     <div class="settings-content">
-      <!-- Модель LLM -->
+      <!-- Вычислительный режим -->
       <div class="settings-group">
-        <h3>🤖 Модель LLM</h3>
+        <h3>🖥️ На чём считать</h3>
+        <div class="mode-options">
+          <label class="mode-opt" :class="{ active: computeMode === 'v100' }">
+            <input type="radio" value="v100" v-model="computeMode" @change="applyMode" />
+            <span class="mode-title">🟢 V100 (Ollama)</span>
+            <span class="mode-desc">Всё считает мощная карта V100. Выбери модель ниже.</span>
+          </label>
+          <label class="mode-opt" :class="{ active: computeMode === 'lmstudio' }">
+            <input type="radio" value="lmstudio" v-model="computeMode" @change="applyMode" />
+            <span class="mode-title">🔵 4070 (LM Studio)</span>
+            <span class="mode-desc">Всё на лёгкой модели LM Studio (Gemma без цензуры).</span>
+          </label>
+          <label class="mode-opt" :class="{ active: computeMode === 'both' }">
+            <input type="radio" value="both" v-model="computeMode" @change="applyMode" />
+            <span class="mode-title">🟣 Обе (V100 + 4070)</span>
+            <span class="mode-desc">Подготовка/анализ/отчёты → V100, посты симуляции → 4070. Быстро и качественно.</span>
+          </label>
+        </div>
+        <p v-if="modeStatus" :class="modeStatusType" class="update-status">{{ modeStatus }}</p>
+      </div>
+
+      <!-- Модель Ollama (для V100 / обе) -->
+      <div class="settings-group" v-if="computeMode !== 'lmstudio'">
+        <h3>🤖 Модель на V100 (Ollama)</h3>
         <div class="setting-row">
-          <label>Активная модель:</label>
+          <label>Модель:</label>
           <select v-model="settings.model" @change="applyModel(settings.model)">
             <option v-if="availableModels.length === 0" disabled value="">
               (модели не найдены — проверьте Ollama)
@@ -22,10 +45,16 @@
           <button class="mini-btn" @click="loadAvailableModels" title="Обновить список">↻</button>
         </div>
         <p class="hint">
-          Модель, на которой считает MiroFish. Изменение применяется к бэкенду сразу.
-          <span v-if="activeBackendModel"> Сейчас на бэкенде: <b>{{ activeBackendModel }}</b></span>
+          Модель для тяжёлых задач на V100.
+          <span v-if="activeBackendModel"> Сейчас: <b>{{ activeBackendModel }}</b></span>
         </p>
         <p v-if="modelStatus" :class="modelStatusType" class="update-status">{{ modelStatus }}</p>
+      </div>
+
+      <!-- LM Studio (для 4070 / обе) -->
+      <div class="settings-group" v-if="computeMode !== 'v100'">
+        <h3>🎮 Модель на 4070 (LM Studio)</h3>
+        <p class="hint">Модель LM Studio: <b>{{ lmstudioModel || 'загружается...' }}</b> (меняется в самом LM Studio)</p>
       </div>
 
       <!-- Бэкенд -->
@@ -118,6 +147,10 @@ export default {
   data() {
     return {
       realVersion: '',
+      computeMode: 'v100',
+      lmstudioModel: '',
+      modeStatus: '',
+      modeStatusType: 'success',
       settings: { ...DEFAULTS },
       availableModels: [],
       activeBackendModel: '',
@@ -135,8 +168,47 @@ export default {
     this.loadAvailableModels();
     this.loadActiveModel();
     this.loadVersion();
+    this.loadCompute();
   },
   methods: {
+    async loadCompute() {
+      try {
+        const r = await fetch(`${this.settings.backendUrl}/api/config/compute`);
+        const d = await r.json();
+        if (d && d.mode) {
+          this.computeMode = d.mode;
+          this.lmstudioModel = d.lmstudio_model || (d.light?.engine === 'lmstudio' ? d.light.model : '');
+          if (d.ollama_model && !this.settings.model) this.settings.model = d.ollama_model;
+        }
+      } catch (e) { console.warn('compute load err', e); }
+    },
+
+    async applyMode() {
+      this.modeStatus = '⏳ Применяю режим...';
+      this.modeStatusType = 'info';
+      try {
+        const r = await fetch(`${this.settings.backendUrl}/api/config/compute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: this.computeMode, ollama_model: this.settings.model }),
+        });
+        const d = await r.json();
+        if (r.ok && d.success) {
+          const names = { v100: 'V100 (Ollama)', lmstudio: '4070 (LM Studio)', both: 'Обе карты' };
+          this.modeStatus = `✅ Режим: ${names[d.mode] || d.mode}`;
+          this.modeStatusType = 'success';
+          this.loadCompute();
+        } else {
+          this.modeStatus = `❌ Ошибка: ${d.error || 'не удалось'}`;
+          this.modeStatusType = 'error';
+        }
+      } catch (e) {
+        this.modeStatus = `❌ Бэкенд недоступен: ${e.message}`;
+        this.modeStatusType = 'error';
+      }
+      setTimeout(() => { this.modeStatus = ''; }, 4000);
+    },
+
     async loadVersion() {
       try {
         if (window.electronAPI?.getAppVersion) {
@@ -372,6 +444,29 @@ export default {
 }
 .setting-row.checkbox label { display: flex; align-items: center; gap: 10px; min-width: auto; cursor: pointer; }
 .setting-row.checkbox input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+.mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mode-opt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "radio title" "radio desc";
+  gap: 2px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.mode-opt:hover { border-color: #a5b4fc; }
+.mode-opt.active { border-color: #667eea; background: #f5f3ff; }
+.mode-opt input[type="radio"] { grid-area: radio; width: 18px; height: 18px; cursor: pointer; }
+.mode-title { grid-area: title; font-weight: 600; color: #1f2937; font-size: 14px; }
+.mode-desc { grid-area: desc; font-size: 12px; color: #6b7280; }
 
 .mini-btn {
   padding: 6px 10px;
