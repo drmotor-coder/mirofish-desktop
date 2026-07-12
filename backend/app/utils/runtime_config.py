@@ -86,6 +86,11 @@ def resolve_endpoint(task: str = "heavy") -> dict:
     """
     Возвращает {base_url, api_key, model} для задачи.
     task: 'heavy' (подготовка/анализ/отчёты) или 'light' (посты симуляции).
+
+    Режим 'both' означает "использовать максимум мощности": и подготовка,
+    и сама симуляция считаются на мощной V100. 4070/LM Studio при этом —
+    надёжный резерв (используется только через force_ollama-подобный
+    механизм для восстановления при сбоях, а не как основной движок).
     """
     mode = get_mode()
     ollama_model = get_model() or DEFAULT_OLLAMA_MODEL
@@ -97,6 +102,6 @@ def resolve_endpoint(task: str = "heavy") -> dict:
     if mode == "lmstudio":
         return lmstudio
     if mode == "both":
-        return ollama if task == "heavy" else lmstudio
+        return ollama  # обе фазы — на V100, максимум мощности
     # v100 (по умолчанию)
     return ollama
