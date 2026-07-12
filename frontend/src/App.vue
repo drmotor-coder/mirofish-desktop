@@ -13,6 +13,13 @@
       {{ backendOnline ? 'Бэкенд подключён' : 'Бэкенд недоступен' }}
     </div>
 
+    <!-- Баннер обновления -->
+    <div v-if="updateReady" class="update-banner">
+      <span>🎉 Готово обновление MiroFish</span>
+      <button class="update-now-btn" @click="restartToUpdate">Обновить и перезапустить</button>
+      <button class="update-later-btn" @click="updateReady = false" title="Позже">✕</button>
+    </div>
+
     <!-- Settings Button (always visible) -->
     <button v-if="!showSettings" class="settings-fab" @click="showSettings = true" title="Настройки">
       ⚙️
@@ -30,7 +37,12 @@ import service from './api/index.js'
 
 const showSettings = ref(false)
 const backendOnline = ref(false)
+const updateReady = ref(false)
 let pollTimer = null
+
+const restartToUpdate = () => {
+  if (window.electronAPI?.restartApp) window.electronAPI.restartApp()
+}
 
 const statusTitle = computed(() =>
   `${backendOnline.value ? 'Соединение установлено' : 'Нет ответа от сервиса'} — ${service.defaults.baseURL}`
@@ -54,6 +66,10 @@ const handleSettingsChange = (settings) => {
 onMounted(() => {
   checkBackend()
   pollTimer = setInterval(checkBackend, 15000)
+  // Показать баннер, когда обновление скачано
+  if (window.electronAPI?.onUpdateDownloaded) {
+    window.electronAPI.onUpdateDownloaded(() => { updateReady.value = true })
+  }
 })
 
 onUnmounted(() => {
@@ -99,6 +115,44 @@ onUnmounted(() => {
 button {
   font-family: inherit;
 }
+
+/* Баннер обновления */
+.update-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+.update-now-btn {
+  background: #fff;
+  color: #5b3fa0;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.update-now-btn:hover { background: #f0f0ff; }
+.update-later-btn {
+  background: transparent;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  opacity: 0.8;
+}
+.update-later-btn:hover { opacity: 1; }
 
 /* Индикатор статуса бэкенда */
 .backend-status {

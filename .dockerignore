@@ -21,3 +21,8 @@ frontend/dist
 frontend/.vite
 
 backend/uploads
+
+# Тяжёлое, не нужное в образе
+installer
+build
+dist_ready
