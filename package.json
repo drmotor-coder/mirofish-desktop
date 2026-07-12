@@ -1,6 +1,6 @@
 {
   "name": "mirofish",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "MiroFish - 简洁通用的群体智能引擎，预测万物",
   "main": "electron/main.js",
   "homepage": "./",
@@ -54,13 +54,6 @@
       "sign": null,
       "signingHashAlgorithms": [],
       "icon": "assets/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "MiroFish"
     },
     "nsis": {
       "oneClick": false,
